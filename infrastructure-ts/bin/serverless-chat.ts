@@ -36,11 +36,14 @@ Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }))
 // DEBUG | INFO | WARN | ERROR
 const LOG_LEVEL = "ERROR"; 
 
-const authStack = new AuthenticationStack(app, 'AuthenticationStack', {});
+const env = { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION };
 
-const databaseStack = new DatabaseStack(app, 'DatabaseStack', {});
+const authStack = new AuthenticationStack(app, 'AuthenticationStack', { env });
+
+const databaseStack = new DatabaseStack(app, 'DatabaseStack', { env });
 
 const websocketApiStack = new WebsocketStack(app, 'WebsocketStack', {
+  env,
   logLevel: LOG_LEVEL,
   messagesTable: databaseStack.messagesTable,
   channelsTable: databaseStack.channelsTable,
@@ -51,6 +54,7 @@ websocketApiStack.addDependency(databaseStack);
 websocketApiStack.addDependency(authStack);
 
 const restApiStack = new RestApiStack(app, 'RestApiStack', {
+  env,
   logLevel: LOG_LEVEL,
   messagesTable: databaseStack.messagesTable,
   channelsTable: databaseStack.channelsTable,
@@ -63,15 +67,16 @@ restApiStack.addDependency(websocketApiStack);
 restApiStack.addDependency(databaseStack);
 
 const frontendStack = new FrontendStack(app, 'FrontendStack', {
+  env,
   restApi: restApiStack.restApi,
   websocketApi: websocketApiStack.webSocketApi,
   cognitoUserPoolId: authStack.cognitoUserPoolId,
-  cognitoDomainPrefix: '' // Cognito domain prefix needs to be unique globally. Please fill in your domain prefix.
+  cognitoDomainPrefix: `ws-chat-${process.env.CDK_DEFAULT_ACCOUNT}` // Cognito domain prefix needs to be unique globally. Please fill in your domain prefix.
 });
 frontendStack.addDependency(restApiStack);
 
 const observabilityStack = new ObservabilityStack(app, 'ObservabilityStack', {
-
+  env,
 });
 
 // CDK-NAG rule supressions
@@ -79,6 +84,7 @@ const observabilityStack = new ObservabilityStack(app, 'ObservabilityStack', {
 NagSuppressions.addStackSuppressions(authStack, [
   { id: 'AwsSolutions-IAM4', reason: 'LambdaBasicExecutionRole has access to create and append to any CW log groups. Although this is not ideal, it does not pose a security risk for the sample.' },
   { id: 'AwsSolutions-IAM5', reason: 'SMS MFA is not enabled on the Userpool.' },
+  { id: 'AwsSolutions-L1', reason: 'NODEJS_20_X is acceptable for this sample.' },
 ]);
 
 NagSuppressions.addStackSuppressions(restApiStack, [
@@ -89,6 +95,7 @@ NagSuppressions.addStackSuppressions(restApiStack, [
   { id: 'AwsSolutions-COG4', reason: 'Cognito authorization has been implemented for the non-public method.' },
   { id: 'AwsSolutions-IAM4', reason: 'LambdaBasicExecutionRole has access to create and append to any CW log groups. Although this is not ideal, it does not pose a security risk for the sample.' },
   { id: 'AwsSolutions-IAM5', reason: 'LambdaBasicExecutionRole has access to create and append to any CW log groups. Although this is not ideal, it does not pose a security risk for the sample.' },
+  { id: 'AwsSolutions-L1', reason: 'NODEJS_20_X is acceptable for this sample. Upgrading to latest runtime is not required.' },
 ]);
 
 NagSuppressions.addStackSuppressions(websocketApiStack, [
@@ -99,6 +106,7 @@ NagSuppressions.addStackSuppressions(websocketApiStack, [
   { id: 'AwsSolutions-COG4', reason: 'Cognito authorization has been implemented for the non-public method.' },
   { id: 'AwsSolutions-IAM4', reason: 'LambdaBasicExecutionRole has access to create and append to any CW log groups. Although this is not ideal, it does not pose a security risk for the sample.' },
   { id: 'AwsSolutions-IAM5', reason: 'LambdaBasicExecutionRole has access to create and append to any CW log groups. Although this is not ideal, it does not pose a security risk for the sample.' },
+  { id: 'AwsSolutions-L1', reason: 'NODEJS_20_X is acceptable for this sample.' },
 ]);
 
 
